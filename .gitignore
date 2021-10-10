@@ -27,3 +27,6 @@
 *.out
 *.app
 CMakeLists.txt.user
+
+# Cmake
+build/
