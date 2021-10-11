@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(Covariant-Return-Types-and-Smart-Pointers)
 
+# backward-cpp
+add_subdirectory(backward-cpp)
+
 # GoogleTest requires at least C++11
 set(CMAKE_CXX_STANDARD 14)
 
@@ -29,10 +32,12 @@ aux_source_directory(. SRC_LIST)
 add_executable(
   clone_unique_ptr_test
   ${SRC_LIST}
+  ${BACKWARD_ENABLE}
 )
 target_link_libraries(
   clone_unique_ptr_test
   gtest_main
-)
+  )
+add_backward(clone_unique_ptr_test)
 
 gtest_discover_tests(clone_unique_ptr_test)

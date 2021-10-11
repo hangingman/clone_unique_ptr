@@ -5,97 +5,92 @@
 
 namespace v5 {
 
-namespace object
-{
-    template<typename T>
-    std::unique_ptr<T> clone(const T& object)
-    {
-        using base_type = typename T::base_type;
-        static_assert(std::is_base_of<base_type, T>::value, "T object has to derived from T::base_type");
-        auto ptr = static_cast<const base_type&>(object).clone();
-        return std::unique_ptr<T>(static_cast<T*>(ptr));
-    }
+  // bnfc AST spec
+  // (1) Node has one abstract class
+  // (1-a) abstract class implements Visitable
+  //
+  // (2) Node has several implement classes
+  // (2-a) implement classes have child elements as field
+  // (2-b) implement classes have following methods:
+  // * Copy ctor, assign(=)
+  // * Constructor with child elements
+  // * Dtor
+  // * virtual methods of accept, clone
+  // * swap
 
-    template<typename T>
-    auto clone(T* object) -> decltype(clone(*object))
-    {
-        return clone(*object);
-    }
+  // -- bnfc sample start
+  class Exp;
+  class Factor;
+  class ImmExp;
+  class IdentFactor;
+  typedef std::string Ident;
 
-    template<typename T>
-    struct cloneable
-    {
-        using base_type = T;
+  class Visitor
+  {
+  public:
+    virtual ~Visitor() {}
+  };
 
-        virtual ~cloneable() = default;
-    protected:
-        virtual T* clone() const = 0;
+  class Visitable
+  {
+  public:
+    virtual ~Visitable() {}
+    virtual void accept(Visitor *v) = 0;
+  };
 
-        template <typename X>
-        friend std::unique_ptr<X> object::clone(const X&);
-    };
-}
+  // bnfc AST
+  class Exp : public Visitable
+  {
+  public:
+    virtual Exp *clone() const = 0;
+  };
 
-struct Figure : object::cloneable<Figure>
-{
-    virtual double  area()  const = 0;
-};
+  class Factor : public Visitable
+  {
+  public:
+    virtual Factor *clone() const = 0;
+  };
 
-struct Square : Figure
-{
-    double a = 0;
+  class ImmExp : public Exp
+  {
+  public:
+    Factor *factor_;
 
-    Square() = default;
-    Square(double a) : a{a}{}
+    ImmExp(const ImmExp & other) { factor_ = other.factor_; }
+    ImmExp &operator=(const ImmExp & other) { ImmExp tmp(other);swap(tmp);return *this; }
+    ImmExp(Factor *p1) { factor_ = p1; }
+    ~ImmExp() {}
+    virtual void accept(Visitor *v) {}
+    virtual ImmExp *clone() const {}
+    void swap(ImmExp & other)  { std::swap(factor_, other.factor_); };
+  };
 
-    double  area()  const override
-    {
-        return a * a;
-    }
+  class IdentFactor : public Factor
+  {
+  public:
+    Ident ident_;
 
-protected:
-    Square* clone() const override     // return type is Square* instead of Figure* (Covariant Return Type)
-    {
-        return new Square(*this);
-    }
-};
+    IdentFactor(const IdentFactor & other) { ident_ = other.ident_; }
+    IdentFactor &operator=(const IdentFactor & other) { IdentFactor tmp(other);swap(tmp);return *this; };
+    IdentFactor(Ident p1) { ident_ = p1; }
+    ~IdentFactor() {}
+    virtual void accept(Visitor *v) {}
+    virtual IdentFactor *clone() const {};
+    void swap(IdentFactor & other) { std::swap(ident_, other.ident_); };
+  };
+  // bnfc sample end --/
+
 
 using namespace ::testing;
 
-TEST(FigureTests_v6, square_clone_method_called_directly_return_pointer_of_type_Square)
+TEST(FigureTests_v6, simple_instance_and_clone)
 {
-    auto square = Square{};
-    auto figure = object::clone(square);
+  auto id = Ident("Hello");
+  std::unique_ptr<IdentFactor> factor (new IdentFactor(id));
+  std::unique_ptr<ImmExp> exp (new ImmExp(factor.get()));
 
-    ASSERT_TRUE((std::is_same<std::unique_ptr<Square>, decltype(figure)>::value));
-}
-
-TEST(FigureTests_v6, square_clone_method_called_via_base_class_return_pointer_of_type_Figure)
-{
-    auto square = Square{};
-    auto square_figure = static_cast<Figure*>(&square);
-    auto figure = object::clone(square_figure);
-
-    ASSERT_TRUE((std::is_same<std::unique_ptr<Figure>, decltype(figure)>::value));
-}
-
-TEST(FigureTests_v6, cloned_square_via_base_pointer_should_return_same_area)
-{
-    auto a = 4.;
-    auto square = Square{a};
-    auto square_figure = static_cast<Figure*>(&square);
-    auto figure = object::clone(square_figure);
-
-    ASSERT_THAT( square.area(), Eq(a*a));
-    ASSERT_THAT(figure->area(), Eq(square.area()));
-}
-
-TEST(FigureTests_v6, clonning_rvalue)
-{
-    auto square = Square{};
-    auto figure = object::clone(Square{});
-
-    ASSERT_TRUE((std::is_same<std::unique_ptr<Square>, decltype(figure)>::value));
+  //stmt = std::make_unique<Statement>();
+  //std::unique_ptr<Prog> p(new Prog());
 }
 
 } // v6 namespace
