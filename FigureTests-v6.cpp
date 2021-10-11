@@ -54,11 +54,13 @@ namespace v5 {
   class ImmExp : public Exp
   {
   public:
-    Factor *factor_;
+    std::unique_ptr<Factor> factor_;
 
-    ImmExp(const ImmExp & other) { factor_ = other.factor_; }
-    ImmExp &operator=(const ImmExp & other) { ImmExp tmp(other);swap(tmp);return *this; }
-    ImmExp(Factor *p1) { factor_ = p1; }
+    // https://stackoverflow.com/a/16030243/2565527
+    ImmExp(ImmExp && other) : factor_(std::move(other.factor_)) {}
+    ImmExp &operator=(ImmExp && other) { factor_ = std::move(other.factor_);return *this; }
+    ImmExp(std::unique_ptr<Factor> p1) { factor_ = std::move(p1); }
+
     ~ImmExp() {}
     virtual void accept(Visitor *v) {}
     virtual ImmExp *clone() const {}
@@ -68,11 +70,11 @@ namespace v5 {
   class IdentFactor : public Factor
   {
   public:
-    Ident ident_;
+    std::unique_ptr<Ident> ident_;
 
-    IdentFactor(const IdentFactor & other) { ident_ = other.ident_; }
-    IdentFactor &operator=(const IdentFactor & other) { IdentFactor tmp(other);swap(tmp);return *this; };
-    IdentFactor(Ident p1) { ident_ = p1; }
+    IdentFactor(IdentFactor && other) : ident_(std::move(other.ident_)) {}
+    IdentFactor &operator=(IdentFactor && other) { ident_ = std::move(other.ident_);return *this; };
+    IdentFactor(std::unique_ptr<Ident> p1) { ident_ = std::move(p1); }
     ~IdentFactor() {}
     virtual void accept(Visitor *v) {}
     virtual IdentFactor *clone() const {};
@@ -85,12 +87,9 @@ using namespace ::testing;
 
 TEST(FigureTests_v6, simple_instance_and_clone)
 {
-  auto id = Ident("Hello");
-  std::unique_ptr<IdentFactor> factor (new IdentFactor(id));
-  std::unique_ptr<ImmExp> exp (new ImmExp(factor.get()));
-
-  //stmt = std::make_unique<Statement>();
-  //std::unique_ptr<Prog> p(new Prog());
+  auto id = std::make_unique<Ident>("Hello");
+  auto factor = std::make_unique<IdentFactor>(std::move(id));
+  auto immExp = std::make_unique<ImmExp>(std::move(factor));
 }
 
 } // v6 namespace
